@@ -101,6 +101,7 @@ class UPNPEntry(object):
 
     def __init__(self, values):
         self.values = values
+        print(values)
         self.created = datetime.now()
 
         if 'cache-control' in self.values:
@@ -134,15 +135,17 @@ class UPNPEntry(object):
         if url not in UPNPEntry.DESCRIPTION_CACHE:
             try:
                 xml = requests.get(url, timeout=10).text
-
+		print(xml)
                 tree = None
                 if len(xml) > 0:
                     tree = ElementTree.fromstring(xml)
 
-                if tree:
+                if tree is not None:
+		    print("tree is not None url:" + url)
                     UPNPEntry.DESCRIPTION_CACHE[url] = \
                         etree_to_dict(tree).get('root', {})
                 else:
+		    print("tree is None")
                     UPNPEntry.DESCRIPTION_CACHE[url] = None
 
             except requests.RequestException:
@@ -156,15 +159,14 @@ class UPNPEntry(object):
                     "Found malformed XML at {}: {}".format(url, xml))
 
                 UPNPEntry.DESCRIPTION_CACHE[url] = {}
-
-        return UPNPEntry.DESCRIPTION_CACHE[url]
+        print(UPNPEntry.DESCRIPTION_CACHE[url])
+	return UPNPEntry.DESCRIPTION_CACHE[url]
 
     def match_device_description(self, values):
         """
         Fetches description and matches against it.
         values should only contain lowercase keys.
         """
-
         if self.description is None:
             return False
 
@@ -213,7 +215,7 @@ def scan(st=None, timeout=DISCOVER_TIMEOUT, max_entries=None, match_mac=None):
 
     calc_now = datetime.now
     start = calc_now()
-
+    print("in scan")
     sockets = []
     try:
         for addr in interface_addresses():
@@ -242,28 +244,39 @@ def scan(st=None, timeout=DISCOVER_TIMEOUT, max_entries=None, match_mac=None):
                 response = sock.recv(1024).decode("UTF-8")
 
                 entry = UPNPEntry.from_response(response)
+  		print(entry)
                 if entry.description is not None:
+		    print("description is not None")
                     device = entry.description.get('device', {})
+		    print(device)
                     mac = device.get('macAddress')
                 else:
+		    print("description is None")
                     mac = None
-
+		print("bogo")
+		print("st: " + st)
                 if ((st is None or entry.st == st) and
                    (match_mac is None or mac == match_mac) and
                    entry not in entries):
+    		    print("entry:")
+		    print(entry)
                     entries.append(entry)
 
                     if max_entries and len(entries) == max_entries:
+			print("max entries reached")
                         return entries
+		else:
+		    print("entry not added")
 
     except socket.error:
+	print("socket error")
         logging.getLogger(__name__).exception(
             "Socket error while discovering SSDP devices")
 
     finally:
         for s in sockets:
             s.close()
-
+    print("yo yo yo yo")
     return entries
 
 

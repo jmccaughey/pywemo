@@ -16,6 +16,18 @@ log = logging.getLogger(__name__)
 # Start with the most commonly used port
 PROBE_PORTS = (49153, 49152, 49154, 49151, 49155)
 
+DEFAULT_SERVICE_LIST = """
+<serviceList>
+      <service>
+        <serviceType>urn:Belkin:service:basicevent:1</serviceType>
+        <serviceId>urn:Belkin:serviceId:basicevent1</serviceId>
+        <controlURL>/upnp/control/basicevent1</controlURL>
+        <eventSubURL>/upnp/event/basicevent1</eventSubURL>
+        <SCPDURL>/eventservice.xml</SCPDURL>
+      </service>
+</serviceList>
+</device>
+"""
 
 def probe_wemo(host):
     """Probe a host for the current port.
@@ -51,7 +63,6 @@ def probe_wemo(host):
 class UnknownService(Exception):
     pass
 
-
 class Device(object):
     def __init__(self, url, mac):
         self._state = None
@@ -61,13 +72,23 @@ class Device(object):
         self.retrying = False
         self.mac = mac
         xml = requests.get(url, timeout=10)
-        self._config = deviceParser.parseString(xml.content).device
+	xmlString = xml.content
+	if "serviceList" not in xmlString:
+	  print("inserting default service list")
+	  xmlString = xmlString.replace("</device>", DEFAULT_SERVICE_LIST, 1)	  
+        self._config = deviceParser.parseString(xmlString).device
         sl = self._config.serviceList
+	print(self._config)
+	print(self._config.friendlyName)
         self.services = {}
-        for svc in sl.service:
+	if sl is not None:	
+          for svc in sl.service:
+	    print("svc.get_serviceType(): " + svc.get_serviceType())
             svcname = svc.get_serviceType().split(':')[-2]
+	    print("svcname: " + svcname)
             service = Service(self, svc, base_url)
             service.eventSubURL = base_url + svc.get_eventSubURL()
+	    print("eventSubURL: " + service.eventSubURL)
             self.services[svcname] = service
             setattr(self, svcname, service)
 
@@ -167,6 +188,7 @@ class Device(object):
         Returns 0 if off and 1 if on.
         """
         if force_update or self._state is None:
+	  if hasattr(self, 'basicevent'):
             state = self.basicevent.GetBinaryState() or {}
 
             try:

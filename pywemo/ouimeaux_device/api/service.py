@@ -19,6 +19,66 @@ REQUEST_TEMPLATE = """
 </s:Envelope>
 """
 
+DEFAULT_SERVICE_XML = """<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:Belkin:service-1-0">
+  <specVersion>
+    <major>1</major>
+    <minor>0</minor>
+  </specVersion>
+  <actionList>
+    <action>
+      <name>SetBinaryState</name>
+      <argumentList>
+        <argument>
+          <retval/>
+          <name>BinaryState</name>
+          <relatedStateVariable>BinaryState</relatedStateVariable>
+          <direction>in</direction>
+        </argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>GetFriendlyName</name>
+      <argumentList>
+        <argument>
+          <retval/>
+          <name>FriendlyName</name>
+          <relatedStateVariable>FriendlyName</relatedStateVariable>
+          <direction>in</direction>
+        </argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>GetBinaryState</name>
+      <argumentList>
+        <argument>
+          <retval/>
+          <name>BinaryState</name>
+          <relatedStateVariable>BinaryState</relatedStateVariable>
+          <direction>out</direction>
+        </argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes">
+      <name>BinaryState</name>
+      <dataType>string</dataType>
+      <defaultValue>0</defaultValue>
+    </stateVariable>
+    <stateVariable sendEvents="No">
+      <name>StateList</name>
+      <dataType>list</dataType>
+      <defaultValue>0</defaultValue>
+    </stateVariable>
+    <stateVariable sendEvents="yes">
+      <name>URL</name>
+      <dataType>string</dataType>
+      <defaultValue>0</defaultValue>
+    </stateVariable>
+  </serviceStateTable>
+</scpd>
+"""
 
 class Action(object):
     def __init__(self, device, service, action_config):
@@ -78,16 +138,25 @@ class Service(object):
         self._base_url = base_url.rstrip('/')
         self._config = service
         url = '%s/%s' % (base_url, service.get_SCPDURL().strip('/'))
-        xml = requests.get(url, timeout=10)
-        if xml.status_code != 200:
-            return
+       	print("service url: " + url)
+	xmlString = "" 
+	try:
+	  xml = requests.get(url, timeout=10)
+	  xmlString = xml.content
+	except:
+	  print("exception requesting " + url)
+	  xmlString = DEFAULT_SERVICE_XML
+	print(xmlString)
         self.actions = {}
-        self._svc_config = serviceParser.parseString(xml.content).actionList
+        self._svc_config = serviceParser.parseString(xmlString).actionList
         for action in self._svc_config.get_action():
             act = Action(device, self, action)
             name = action.get_name()
             self.actions[name] = act
             setattr(self, name, act)
+
+    #def __init__(self, device, base_url):
+#	self._base_url = base_url.rstrip('/')
 
     @property
     def hostname(self):
